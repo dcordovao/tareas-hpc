@@ -3,8 +3,39 @@
 #include <stdlib.h>
 #include <fstream>
 #include <string>
+#include <vector>
+#include <set>
 
 using namespace std;
+
+vector<string> splitpath(
+  const string& str
+  , const set<char> delimiters)
+{
+  vector<string> result;
+
+  char const* pch = str.c_str();
+  char const* start = pch;
+  for(; *pch; ++pch)
+  {
+    if (delimiters.find(*pch) != delimiters.end())
+    {
+      if (start != pch)
+      {
+        string str(start, pch);
+        result.push_back(str);
+      }
+      else
+      {
+        result.push_back("");
+      }
+      start = pch + 1;
+    }
+  }
+  result.push_back(start);
+
+  return result;
+}
 
 int main(int argc, char *argv[]){
 
@@ -28,12 +59,20 @@ int main(int argc, char *argv[]){
 
    	// Allocating matrix
    	matrix = (float **)malloc(rows * sizeof(float *));
-	for(int i = 0; i < rows; i++) matrix[i] = (float *)malloc(cols * sizeof(float));
-	r_out = (float *)calloc(cols * sizeof(float)); // Initialize with zeros
-	g_out = (float *)calloc(cols * sizeof(float)); // Initialize with zeros
-	b_out = (float *)calloc(cols * sizeof(float)); // Initialize with zeros
+    for(int i = 0; i < rows; i++) matrix[i] = (float *)malloc(cols * sizeof(float));
+  	r_out = (float *)malloc(cols * sizeof(float));
+  	g_out = (float *)malloc(cols * sizeof(float));
+  	b_out = (float *)malloc(cols * sizeof(float));
+    // Initialize with zeros
+    // I didn't use Calloc because it doesn't work with floats
+    for (int j = 0; j < cols; j++)
+    {
+      r_out[j] = 0;
+      g_out[j] = 0;
+      b_out[j] = 0;
+    }
 
-	// Reading matrix
+	  // Reading matrix
    	for (int i = 0; i < rows; i++)
    	{
    		for (int j = 0; j < cols; j++)
@@ -42,76 +81,51 @@ int main(int argc, char *argv[]){
    		}
    	}
 
-   	// Adding R channels
+   	// Adding R, G and B channels
    	for (int i = 0; i < rows; i+=3)
    	{
    		for (int j = 0; j < cols; j++)
    		{
    			r_out[j] += matrix[i][j];
+        g_out[j] += matrix[i+1][j];
+        b_out[j] += matrix[i+2][j];
    		}
    	}
-   	// Dividing by L de R Channel
+   	// Dividing by L de R, G and B Channels
    	for (int j = 0; j < cols; j++)
-	{
-		r_out[j] /= L;
-	}
+  	{
+  		r_out[j] /= L;
+      g_out[j] /= L;
+      b_out[j] /= L;
+  	}
 
+    set<char> delims{'/'};
+    vector<string> path = splitpath(input_file_name, delims);
 
-	// Adding G channels
-   	for (int i = 1; i < rows; i+=3)
-   	{
-   		for (int j = 0; j < cols; j++)
-   		{
-   			g_out[j] += matrix[i][j];
-   		}
-   	}
-   	// Dividing by L de G Channel
-   	for (int j = 0; j < cols; j++)
-	{
-		g_out[j] /= L;
-	}
-
-	// Adding B channels
-   	for (int i = 2; i < rows; i+=3)
-   	{
-   		for (int j = 0; j < cols; j++)
-   		{
-   			b_out[j] += matrix[i][j];
-   		}
-   	}
-   	// Dividing by L de B Channel
-   	for (int j = 0; j < cols; j++)
-	{
-		b_out[j] /= L;
-	}
-
-
-	ofstream result_file;
-   	result_file.open("result.txt");
+    // Printing the result file
+	  ofstream result_file;
+   	result_file.open("result_"+path.back());
 
    	result_file << M << " " << N << endl;
    	for (int j = 0; j < cols-1; j++)
    	{
    		result_file << r_out[j] << " ";
    	}
-   	result_file << r_out[cols] << endl;
+   	result_file << r_out[cols-1] << endl;
 
    	for (int j = 0; j < cols-1; j++)
    	{
    		result_file << g_out[j] << " ";
    	}
-   	result_file << g_out[cols] << endl;
+   	result_file << g_out[cols-1] << endl;
 
    	for (int j = 0; j < cols-1; j++)
    	{
    		result_file << b_out[j] << " ";
    	}
-   	result_file << b_out[cols];
+   	result_file << b_out[cols-1];
 
-   	system("python converter.py 1 result.txt");
-
-
-    //system("python converter.py 1 images/images1");
+   	// system("python3 converter.py 1 result");
 
     return 0;
 }
