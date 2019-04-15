@@ -2,6 +2,8 @@
 #include <time.h>
 #include <cuda_runtime.h>
 
+using namespace std;
+
 #define CUDA_CHECK(condition) \
   /* Code block avoids redefinition of cudaError_t error */ \
   do { \
