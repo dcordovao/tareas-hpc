@@ -108,7 +108,7 @@ int main(int argc, char *argv[]){
 	set<char> delims{'/'};
 	vector<string> path = splitpath(input_file_name, delims);
 	ofstream times_file, result_file;
-	times_file.open("resultados/times_cuda.txt", ios_base::app);
+	times_file.open("resultados/times_cuda_pregunta2.txt", ios_base::app);
 	
 
 	int x_to_test[] = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
@@ -162,7 +162,7 @@ int main(int argc, char *argv[]){
 
 		// Printing the result file
 		
-		string result_file_name = "resultados/result_cuda_x"+to_string(X)+"_"+path.back();
+		string result_file_name = "resultados/result_cuda_pregunta3_x"+to_string(X)+"_"+path.back();
 		cout << result_file_name << endl;
 		result_file.open(result_file_name);
 

@@ -6,6 +6,7 @@
 #include <vector>
 #include <set>
 #include <ctime>
+#include <iomanip>
 
 using namespace std;
 
@@ -115,10 +116,12 @@ int main(int argc, char *argv[]){
 
 		duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
 		double duration_ms = duration*1000;
-		cout<<"printf: "<< duration_ms << "[ms]" << '\n';
+		
+		cout<<"printf: "<< setprecision(4) << duration_ms << "[ms]" << '\n';
 
+		
 		// Escribiendo resultado en archivo
-		times_file <<  "X = "<< X << " " << path.back() << " " << duration_ms << "[ms]" << endl;
+		times_file <<  "X = "<< X << " " << path.back() << " " << setprecision(4) << duration_ms << "[ms]" << endl;
 
 		// Printing the result file
 		

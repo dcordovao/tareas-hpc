@@ -44,17 +44,28 @@ vector<string> splitpath( const string& str, const set<char> delimiters)
     } \
   } while (0)
 
-// Sumar cada columna(pixel) de las imagenes en paralelo
-__global__ void kernel_swapArray(float *r_in, float *g_in, float *b_in,
-  float *r_result, float *g_result, float *b_result , int size, int x) {
-
+__device__ void swapArray(float *in, float *result, int size, int x,int cols)
+{
   int Idx = threadIdx.x + blockIdx.x * blockDim.x;
 
   if (Idx < size) {
-    r_result[Idx] = ((Idx/x)%2 == 0)? r_in[Idx +x]: r_in[Idx-x];
-    g_result[Idx] = ((Idx/x)%2 == 0)? g_in[Idx +x]: g_in[Idx-x];
-    b_result[Idx] = ((Idx/x)%2 == 0)? b_in[Idx +x]: b_in[Idx-x];
+    int aux = (Idx % cols) % x;
+    //if (Idx % cols < 2 * blockDim.x) {
+    if (blockIdx.x % 4 < 2) {
+      result[Idx + (aux + 1) * x] =  in[Idx + aux * x];
+    } else {
+      result[Idx + (aux - 1) * x] = in[Idx + (aux + 1) * x];
+    }
   }
+}
+
+// Sumar cada columna(pixel) de las imagenes en paralelo(r_in_dev, g_in_dev, b_in_dev, r_out_dev, g_out_dev, b_out_dev, size, X, N)
+__global__ void kernel_swapArray(float *r_in_dev, float *g_in_dev, float* b_in_dev, float *r_out_dev, 
+  float *g_out_dev, float* b_out_dev, int size, int x, int cols) {
+
+  swapArray(r_in_dev, r_out_dev, size, x, cols);
+  swapArray(g_in_dev, g_out_dev, size, x, cols);
+  swapArray(b_in_dev, b_out_dev, size, x, cols);
 }
 
 int main(int argc, char *argv[]){
@@ -108,7 +119,7 @@ int main(int argc, char *argv[]){
 	set<char> delims{'/'};
 	vector<string> path = splitpath(input_file_name, delims);
 	ofstream times_file, result_file;
-	times_file.open("resultados/times_cuda.txt", ios_base::app);
+	times_file.open("resultados/times_cuda_pregunta3.txt", ios_base::app);
 	
 
 	int x_to_test[] = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
@@ -143,7 +154,7 @@ int main(int argc, char *argv[]){
     // Llamar algoritmo
     int grid_size, block_size = 256;
     grid_size = (int)ceil((float) size / block_size);
-    kernel_swapArray<<<grid_size, block_size>>>(r_in_dev, g_in_dev, b_in_dev, r_out_dev, g_out_dev, b_out_dev, size, X);
+    kernel_swapArray<<<grid_size, block_size>>>(r_in_dev, g_in_dev, b_in_dev, r_out_dev, g_out_dev, b_out_dev, size, X, N);
     cudaEventRecord(ct2);
     cudaEventSynchronize(ct2);
     cudaEventElapsedTime(&dt, ct1, ct2);
@@ -162,7 +173,7 @@ int main(int argc, char *argv[]){
 
 		// Printing the result file
 		
-		string result_file_name = "resultados/result_cuda_x"+to_string(X)+"_"+path.back();
+		string result_file_name = "resultados/result_cuda_pregunta3_x"+to_string(X)+"_"+path.back();
 		cout << result_file_name << endl;
 		result_file.open(result_file_name);
 
