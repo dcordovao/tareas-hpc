@@ -50,7 +50,7 @@ __global__ void charge(float l, float *map,float *X,float *Y)
         rowCell = (i / WIDTH);
         colCell = (i % WIDTH);
         //float distancia = rowCell-colCell;
-        float distancia = dist(rowParticle,colParticle,rowCell,colCell);
+        float distancia = 1;//(dist(rowParticle,colParticle,rowCell,colCell);
         if (distancia != -1) {
           map[i] += distancia;
         }
@@ -126,7 +126,7 @@ int main(int argc, char *argv[]){
 	}
 
 	ifstream infile;
-	cout << input_file_name.c_str() << endl;
+	cout << "Reading: " <<  input_file_name.c_str() << endl;
 	infile.open(input_file_name.c_str());
 
   int nP;
@@ -180,12 +180,31 @@ int main(int argc, char *argv[]){
   //cudaMemcpy(x_dev, &x_part,  nP * sizeof(float), cudaMemcpyHostToDevice);
   //cudaMemcpy(y_dev, &y_part,  nP * sizeof(float), cudaMemcpyHostToDevice);
 
+
+  cudaEvent_t ct1, ct2;
+  float dt, dt2;
+
+  // time before kernel
+  cudaEventCreate(&ct1);
+  cudaEventCreate(&ct2);
+  cudaEventRecord(ct1);
+
   // Charge grid
   charge<<<gridSize,blockSize>>>(WIDTH*LENGHT, d_cells, x_part_dev, y_part_dev); 
   cudaDeviceSynchronize();
+
+  //Time after charge kernel
+  cudaEventRecord(ct2);
+  cudaEventSynchronize(ct2);
+  cudaEventElapsedTime(&dt, ct1, ct2);
+  float time1 = dt;
+
+  std::cout << "Time GPU computing cells charges: " << time1 << "[ms]" << std::endl;
+
   CUDA_CHECK(cudaMemcpy(cells, d_cells, WIDTH*LENGHT*sizeof(float), cudaMemcpyDeviceToHost));
   cudaDeviceSynchronize();
 
+  
   // check for errors
   cudaError_t error = cudaGetLastError();
   if (error != cudaSuccess) {
@@ -210,6 +229,11 @@ int main(int argc, char *argv[]){
 
   cout << "\n \n primera parte exitosa (?)" << endl;
 
+  // time before kernel min
+  cudaEventCreate(&ct1);
+  cudaEventCreate(&ct2);
+  cudaEventRecord(ct1);
+
   // Search min load
   minReduction<<<gridSize,blockSize>>>(d_cells,outData); // First reduction 8192*8192 -> (8192*8192+255)/ 256 = 262.144
   cudaDeviceSynchronize();
@@ -217,6 +241,27 @@ int main(int argc, char *argv[]){
   cudaDeviceSynchronize();
   minReduction<<<(gridSize/blockSize)/blockSize,blockSize>>>(out2,out3); // Third reduction 262.144 -> 4 :)
   cudaDeviceSynchronize();
+
+  //Time after min kernel
+  cudaEventRecord(ct2);
+  cudaEventSynchronize(ct2);
+  cudaEventElapsedTime(&dt2, ct1, ct2);
+  float time2 = dt2;
+
+  std::cout << "Time GPU computing minimum value: " << time2 << "[ms]" << std::endl;
+
+  // check for errors
+  error = cudaGetLastError();
+  if (error != cudaSuccess) {
+    fprintf(stderr, "ERROR: %s \n", cudaGetErrorString(error));
+  }
+
+  // Escribiendo resultado en archivo
+  ofstream times_file;
+  times_file.open("results_tarea_4_2.txt", ios_base::app);
+  times_file << input_file_name.c_str() << endl;
+  times_file << "Tiempo en charge kernel: "<< dt << "[ms]" << endl;
+  times_file << "Tiempo en min kernel: "<< dt2 << "[ms]" << endl;
 
   cudaMemcpy(y, out3, 4*sizeof(float), cudaMemcpyDeviceToHost);
 

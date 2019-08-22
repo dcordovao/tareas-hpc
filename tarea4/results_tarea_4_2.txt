@@ -1,0 +1,6 @@
+particulas.txt
+Tiempo en charge kernel: 1023.24[ms]
+Tiempo en min kernel: 2.22976[ms]
+particulas.txt
+Tiempo en charge kernel: 952.958[ms]
+Tiempo en min kernel: 2.2056[ms]
