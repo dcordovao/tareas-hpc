@@ -4,3 +4,36 @@ Tiempo en min kernel: 2.22976[ms]
 particulas.txt
 Tiempo en charge kernel: 952.958[ms]
 Tiempo en min kernel: 2.2056[ms]
+.\particulas.txt
+Tiempo en charge kernel: 76271.2[ms]
+Tiempo en min kernel: 37.712[ms]
+.\particulas.txt
+Tiempo en charge kernel: 76269.4[ms]
+Tiempo en min kernel: 40.0221[ms]
+.\particulas.txt
+Tiempo en charge kernel: 76259[ms]
+Tiempo en min kernel: 41.6969[ms]
+.\particulas.txt
+Tiempo en charge kernel: 76120.3[ms]
+Tiempo en min kernel: 41.395[ms]
+.\particulas.txt
+Tiempo en charge kernel: 76157[ms]
+Tiempo en min kernel: 34.7723[ms]
+.\particulas.txt
+Tiempo en charge kernel: 254730[ms]
+Tiempo en min kernel: 49.6584[ms]
+.\particulas.txt
+Tiempo en charge kernel: 68407.3[ms]
+Tiempo en min kernel: 48.6138[ms]
+.\particulas.txt
+Tiempo en charge kernel: 68061.5[ms]
+Tiempo en min kernel: 36.7043[ms]
+.\particulas.txt
+Tiempo en charge kernel: 68401.6[ms]
+Tiempo en min kernel: 32.9083[ms]
+.\particulas.txt
+Tiempo en charge kernel: 68415.4[ms]
+Tiempo en min kernel: 33.1693[ms]
+.\particulas.txt
+Tiempo en charge kernel: 68386[ms]
+Tiempo en min kernel: 32.8094[ms]

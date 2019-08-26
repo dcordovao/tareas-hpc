@@ -2,6 +2,7 @@
 #include <iostream>
 #include <iostream>
 #include <fstream>
+#include <limits>
 
 #define WIDTH 8192
 #define LENGHT 8192
@@ -98,7 +99,8 @@ int main(int argc, char *argv[]){
 	infile.open(input_file_name.c_str());
 
   int nP;
-	float *x_part, *y_part;
+  float *x_part, *y_part;
+  float inf = std::numeric_limits<float>::infinity();
 
   infile >> nP;
   cout << "nP: "<<nP << endl;
@@ -112,8 +114,8 @@ int main(int argc, char *argv[]){
 
   // Get memory for structures
   //float *cells, *d_cells,*outData,*out2,*out3,y[4];
-  cell *cells, *d_cells, *dev_out, *dev_out2,*out;
-  float *x_part_dev, *y_part_dev;
+  cell *cells, *d_cells, *dev_out, *dev_out2, *dev_out3,*out;
+  // HABIA QUE COMENTAR ESTO float *x_part_dev, *y_part_dev;
   //cells = (float*)malloc(WIDTH*LENGHT*sizeof(float));
   cells = (cell*)malloc(WIDTH*LENGHT*sizeof(cell));
 
@@ -121,12 +123,15 @@ int main(int argc, char *argv[]){
   // Initialization grid with 0
   for (int i = 0; i < WIDTH*LENGHT; i++) {
     cells[i].charge = 0.0;
+    cells[i].index = i;
   }
 
   // Define sizes of GPU
   int blockSize = 256; // # threads
   int gridSize = ((WIDTH*LENGHT)/blockSize)+ ((WIDTH*LENGHT) % blockSize != 0); // # blocks
   int sharedBytes = blockSize*sizeof(cell);
+
+  cout << "Gridsize: " << gridSize << endl;
 
   // Get memory in GPU for structures
   // data for charge function
@@ -137,14 +142,15 @@ int main(int argc, char *argv[]){
   // data for reduction function
   CUDA_CHECK(cudaMalloc(&dev_out, gridSize*sizeof(cell)));
   CUDA_CHECK(cudaMalloc(&dev_out2, (gridSize/blockSize)*sizeof(cell)));
-  out = (cell*)malloc((gridSize/blockSize)*sizeof(cell));
+  CUDA_CHECK(cudaMalloc(&dev_out3, (gridSize/blockSize)/blockSize*sizeof(cell)));
+  out = (cell*)malloc((gridSize/blockSize)/blockSize*sizeof(cell));
 
   // Copy data from CPU to GPU
   CUDA_CHECK(cudaMemcpy(d_cells, cells, WIDTH*LENGHT*sizeof(cell), cudaMemcpyHostToDevice));
   //CUDA_CHECK(cudaMemcpy(x_part_dev, x_part, N_PARTICLES * sizeof(float), cudaMemcpyHostToDevice));
   //CUDA_CHECK(cudaMemcpy(y_part_dev, y_part, N_PARTICLES * sizeof(float), cudaMemcpyHostToDevice));
-  cudaMemcpyToSymbol(x_part_dev, x_part, N_PARTICLES * sizeof(float))
-  cudaMemcpyToSymbol(y_part_dev, y_part, N_PARTICLES * sizeof(float))
+  cudaMemcpyToSymbol(x_part_dev, x_part, N_PARTICLES * sizeof(float));
+  cudaMemcpyToSymbol(y_part_dev, y_part, N_PARTICLES * sizeof(float));
 
   cudaEvent_t ct1, ct2;
   float dt, dt2;
@@ -166,8 +172,18 @@ int main(int argc, char *argv[]){
 
   std::cout << "Time GPU computing cells charges: " << time1 << "[ms]" << std::endl;
 
-  //CUDA_CHECK(cudaMemcpy(cells, d_cells, WIDTH*LENGHT*sizeof(float), cudaMemcpyDeviceToHost));
-  //cudaDeviceSynchronize();
+  CUDA_CHECK(cudaMemcpy(cells, d_cells, WIDTH*LENGHT*sizeof(cell), cudaMemcpyDeviceToHost));
+  cudaDeviceSynchronize();
+  int zeros=0;
+  for(int i=0;i<WIDTH*LENGHT;i++)
+  {
+    if(cells[i].charge==0) 
+    {
+      cells[i].charge = inf;
+      zeros++;
+    }
+  }
+  cout << "Zeros(Errors before charge: " << zeros << endl;
 
 
   // check for errors
@@ -176,21 +192,31 @@ int main(int argc, char *argv[]){
     fprintf(stderr, "ERROR: %s \n", cudaGetErrorString(error));
   }
 
+  // Copy AGAIN
+  CUDA_CHECK(cudaMemcpy(d_cells, cells, WIDTH*LENGHT*sizeof(cell), cudaMemcpyHostToDevice));
+
   // time before kernel min
   cudaEventCreate(&ct1);
   cudaEventCreate(&ct2);
   cudaEventRecord(ct1);
 
+  int large_out_1, large_out_2, large_out_3;
+  large_out_1 = gridSize;
+  large_out_2 = large_out_1/blockSize;
+  large_out_3 = large_out_2/blockSize;
+
   // Search min load
-  reduce0<<<gridSize,blockSize,sharedBytes>>>(d_cells, dev_out);
+  reduce0<<<large_out_1,blockSize,sharedBytes>>>(d_cells, dev_out);
   cudaDeviceSynchronize();
   cout << "first reduction" << endl;
-  reduce0<<<gridSize/blockSize,blockSize,sharedBytes>>>(dev_out, dev_out2);
+  reduce0<<<large_out_2, blockSize, sharedBytes>>>(dev_out, dev_out2);
   cudaDeviceSynchronize();
   cout << "second reduction" << endl;
-  CUDA_CHECK(cudaMemcpy(out, dev_out2, gridSize/blockSize*sizeof(float), cudaMemcpyDeviceToHost));
+  reduce0<<<large_out_3,blockSize,sharedBytes>>>(dev_out2, dev_out3);
+  cudaDeviceSynchronize();
+  cout << "third reduction" << endl;
+  CUDA_CHECK(cudaMemcpy(out, dev_out3, ((gridSize/blockSize)/blockSize)*sizeof(cell), cudaMemcpyDeviceToHost));
   // check for errors
-  cudaError_t error = cudaGetLastError();
   if (error != cudaSuccess) {
     fprintf(stderr, "ERROR: %s \n", cudaGetErrorString(error));
   }
@@ -203,8 +229,8 @@ int main(int argc, char *argv[]){
 
   std::cout << "Time GPU computing minimum value: " << time2 << "[ms]" << std::endl;
 
-  for (size_t i = 0; i < gridSize/blockSize; i++) {
-    cout << out[i] << endl;
+  for (size_t i = 0; i < (gridSize/blockSize)/blockSize; i++) {
+    cout << "Charge: " << out[i].charge << "   Pos: " << out[i].index << endl;
   }
 
   // Escribiendo resultado en archivo
@@ -215,10 +241,11 @@ int main(int argc, char *argv[]){
   times_file << "Tiempo en min kernel: "<< dt2 << "[ms]" << endl;
 
   cudaFree(d_cells);
-  cudaFree(dev_out2);
   cudaFree(dev_out);
+  cudaFree(dev_out2);
+  cudaFree(dev_out3);
   free(cells);
-  free(out)
+  free(out);
   free(x_part);
   free(y_part);
 
