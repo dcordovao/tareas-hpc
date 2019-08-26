@@ -156,7 +156,7 @@ int main(int argc, char *argv[]){
 
   // Define sizes of GPU
   int blockSize = 256; // # threads
-  int gridSize = ((WIDTH*LENGHT)/256)/CELLS_FOR_THREAD; // # blocks
+  int gridSize = ((WIDTH*LENGHT)/256)/CELLS_FOR_THREAD +1; // # blocks
 
   cout << "gridSize: " << gridSize << endl; 
   // Get memory in GPU for structures

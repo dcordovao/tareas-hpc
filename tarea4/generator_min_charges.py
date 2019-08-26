@@ -15,4 +15,4 @@ for i in range(n):
         f.write(str(x)+'\n')
     else:
         f.write(str(1.0)+'\n')
-f.close()
+f.close()   
