@@ -16,8 +16,8 @@ typedef struct
     int index;
 } cell;
 
-// __constant__ float x_part_dev[N_PARTICLES];
-// __constant__ float y_part_dev[N_PARTICLES];
+__constant__ float x_part_dev[N_PARTICLES];
+__constant__ float y_part_dev[N_PARTICLES];
 
 #define CUDA_CHECK(condition) \
   /* Code block avoids redefinition of cudaError_t error */ \
@@ -37,7 +37,9 @@ __device__ float dist(float x1, float y1, float x2, float y2)
   else return -1;
 }
 
-__global__ void charge(float l, cell *map,float *X,float *Y)
+
+
+__global__ void charge(float l, cell *map)
 {
 
   int i = blockIdx.x*blockDim.x + threadIdx.x;
@@ -46,8 +48,8 @@ __global__ void charge(float l, cell *map,float *X,float *Y)
   if (i<l)
   {
     for (size_t j = 0; j < N_PARTICLES; j++) {
-      rowParticle = Y[j];
-      colParticle = X[j];
+      rowParticle = y_part_dev[j];
+      colParticle = x_part_dev[j];
       rowCell = (i / WIDTH);
       colCell = (i % WIDTH);
       float distancia = (dist(rowParticle,colParticle,rowCell,colCell));
@@ -129,8 +131,8 @@ int main(int argc, char *argv[]){
   // Get memory in GPU for structures
   // data for charge function
   CUDA_CHECK(cudaMalloc(&d_cells, WIDTH*LENGHT*sizeof(cell))); // 1D array representation for grid 2D
-  CUDA_CHECK(cudaMalloc(&x_part_dev, N_PARTICLES*sizeof(float)));
-  CUDA_CHECK(cudaMalloc(&y_part_dev, N_PARTICLES*sizeof(float)));
+  //CUDA_CHECK(cudaMalloc(&x_part_dev, N_PARTICLES*sizeof(float)));
+  //CUDA_CHECK(cudaMalloc(&y_part_dev, N_PARTICLES*sizeof(float)));
 
   // data for reduction function
   CUDA_CHECK(cudaMalloc(&dev_out, gridSize*sizeof(cell)));
@@ -139,8 +141,10 @@ int main(int argc, char *argv[]){
 
   // Copy data from CPU to GPU
   CUDA_CHECK(cudaMemcpy(d_cells, cells, WIDTH*LENGHT*sizeof(cell), cudaMemcpyHostToDevice));
-  CUDA_CHECK(cudaMemcpy(x_part_dev, x_part, N_PARTICLES * sizeof(float), cudaMemcpyHostToDevice));
-  CUDA_CHECK(cudaMemcpy(y_part_dev, y_part, N_PARTICLES * sizeof(float), cudaMemcpyHostToDevice));
+  //CUDA_CHECK(cudaMemcpy(x_part_dev, x_part, N_PARTICLES * sizeof(float), cudaMemcpyHostToDevice));
+  //CUDA_CHECK(cudaMemcpy(y_part_dev, y_part, N_PARTICLES * sizeof(float), cudaMemcpyHostToDevice));
+  cudaMemcpyToSymbol(x_part_dev, x_part, N_PARTICLES * sizeof(float))
+  cudaMemcpyToSymbol(y_part_dev, y_part, N_PARTICLES * sizeof(float))
 
   cudaEvent_t ct1, ct2;
   float dt, dt2;
@@ -151,7 +155,7 @@ int main(int argc, char *argv[]){
   cudaEventRecord(ct1);
 
   // Charge grid
-  charge<<<gridSize,blockSize>>>(WIDTH*LENGHT, d_cells, x_part_dev, y_part_dev);
+  charge<<<gridSize,blockSize>>>(WIDTH*LENGHT, d_cells);
   cudaDeviceSynchronize();
 
   //Time after charge kernel
