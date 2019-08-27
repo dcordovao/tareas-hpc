@@ -55,10 +55,10 @@ __global__ void charge(cell *map)
     //{
   x_cen = x_part_dev[id_particle];
   y_cen = y_part_dev[id_particle];
-  subgrid_x = (id_particle%SUBGRID)%201;
-  subgrid_y = (id_particle%SUBGRID)/201;
+  subgrid_x = (idx%SUBGRID)%201;
+  subgrid_y = (idx%SUBGRID)/201;
   d = dist(x_cen,y_cen,subgrid_x,subgrid_y);
-  index = ((y_cen-RADIO)+subgrid_y)*WIDTH+((x_cen-RADIO)+subgrid_x);
+  index = (((int)y_cen-RADIO)+subgrid_y)*WIDTH+(((int)x_cen-RADIO)+subgrid_x);
   if(0<=index && index<WIDTH*LENGHT) atomicAdd(&map[index].charge, d);
     //}
   //}

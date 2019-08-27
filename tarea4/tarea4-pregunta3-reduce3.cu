@@ -78,19 +78,20 @@ __global__ void add_one_particle(int l, int part_pos, cell *map)
   }
 }
 
-__global__ void reduce0(cell *g_idata, cell *g_odata)
+__global__ void reduce3(cell *g_idata, cell *g_odata)
 {
     extern __shared__ cell sdata[];
-    // each thread loads one element from global to shared mem
+    // perform first level of reduction,
+    // reading from global memory, writing to shared memory
     unsigned int tid = threadIdx.x;
-    unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;
-    sdata[tid] = g_idata[i];
+    unsigned int i = blockIdx.x*(blockDim.x*2) + threadIdx.x;
+    sdata[tid] = (g_idata[i].charge< g_idata[i+blockDim.x].charge)? g_idata[i]:g_idata[i+blockDim.x];
     __syncthreads();
+
     // do reduction in shared mem
-    for(unsigned int s=1; s < blockDim.x; s *= 2)
+    for (unsigned int s=blockDim.x/2; s>0; s>>=1) 
     {
-        if (tid % (2*s) == 0)
-        {
+        if (tid < s) {
             sdata[tid] = (sdata[tid].charge < sdata[tid + s].charge)? sdata[tid]: sdata[tid + s];
         }
         __syncthreads();
@@ -223,13 +224,13 @@ int main(int argc, char *argv[]){
   large_out_3 = large_out_2/blockSize;
 
   // Search min load
-  reduce0<<<large_out_1,blockSize,sharedBytes>>>(d_cells, dev_out);
+  reduce3<<<large_out_1/2,blockSize,sharedBytes>>>(d_cells, dev_out);
   cudaDeviceSynchronize();
   cout << "first reduction" << endl;
-  reduce0<<<large_out_2, blockSize, sharedBytes>>>(dev_out, dev_out2);
+  reduce3<<<large_out_2/2, blockSize, sharedBytes>>>(dev_out, dev_out2);
   cudaDeviceSynchronize();
   cout << "second reduction" << endl;
-  reduce0<<<large_out_3,blockSize,sharedBytes>>>(dev_out2, dev_out3);
+  reduce3<<<large_out_3/2,blockSize,sharedBytes>>>(dev_out2, dev_out3);
   cudaDeviceSynchronize();
   cout << "third reduction" << endl;
   CUDA_CHECK(cudaMemcpy(out, dev_out3, ((gridSize/blockSize)/blockSize)*sizeof(cell), cudaMemcpyDeviceToHost));
@@ -291,11 +292,11 @@ int main(int argc, char *argv[]){
     cudaEventRecord(ct1);
 
     // Search min load
-    reduce0<<<large_out_1,blockSize,sharedBytes>>>(d_cells, dev_out);
+    reduce3<<<large_out_1/2,blockSize,sharedBytes>>>(d_cells, dev_out);
     cudaDeviceSynchronize();
-    reduce0<<<large_out_2, blockSize, sharedBytes>>>(dev_out, dev_out2);
+    reduce3<<<large_out_2/2, blockSize, sharedBytes>>>(dev_out, dev_out2);
     cudaDeviceSynchronize();
-    reduce0<<<large_out_3,blockSize,sharedBytes>>>(dev_out2, dev_out3);
+    reduce3<<<large_out_3/2,blockSize,sharedBytes>>>(dev_out2, dev_out3);
     cudaDeviceSynchronize();
 
     //Time after min kernel
@@ -318,7 +319,7 @@ int main(int argc, char *argv[]){
 
   // Escribiendo resultado en archivo
   ofstream times_file;
-  times_file.open("results_tarea_4_2_final.txt");
+  times_file.open("results_tarea_4_3_reduce3.txt");
   times_file << input_file_name.c_str() << endl;
   times_file << "Tiempo en charge kernel primera iteracion: "<< dt << "[ms]" << endl;
   times_file << "Tiempo en min kernel primera iteracion: "<< dt2 << "[ms]" << endl;
