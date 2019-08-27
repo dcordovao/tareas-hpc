@@ -10,9 +10,21 @@
 #define SUBGRID 40410
 #define PARTICLES_PER_THREAD 100
 #define N_NEW 20205000
+#define N_PARTICLES 5000
 
 __constant__ float x_part_dev[N_PARTICLES];
 __constant__ float y_part_dev[N_PARTICLES];
+
+using namespace std;
+
+#define CUDA_CHECK(condition) \
+  /* Code block avoids redefinition of cudaError_t error */ \
+  do { \
+    cudaError_t error = condition; \
+    if (error != cudaSuccess) { \
+      cout << cudaGetErrorString(error) << endl; \
+    } \
+  } while (0)
 
 typedef struct
 {
@@ -30,10 +42,10 @@ __device__ float dist(float x1, float y1, float x2, float y2)
 
 __global__ void charge(cell *map)
 {
-  int x_cen,y_cen,subgrid_x,subgrid_y;
+  int x_cen,y_cen,subgrid_x,subgrid_y, index;
   int idx = blockIdx.x*blockDim.x + threadIdx.x;
   int id_particle_piv = idx/40401;
-  float dist;
+  float d;
 
   for (size_t i = id_particle_piv*PARTICLES_PER_THREAD;
       i < id_particle_piv*PARTICLES_PER_THREAD + PARTICLES_PER_THREAD; i++)
@@ -42,9 +54,9 @@ __global__ void charge(cell *map)
     y_cen = y_part_dev[i];
     subgrid_x = i%SUBGRID;
     subgrid_y = i/SUBGRID;
-    d = dist(x_cent,y_cen,subgrid_x,subgrid_y);
+    d = dist(x_cen,y_cen,subgrid_x,subgrid_y);
     index = ((y_cen-RADIO)+subgrid_y)*WIDTH+((x_cen-RADIO)+subgrid_x);
-    atomicAdd(map[index], d);
+    atomicAdd(&map[index].charge, d);
   }
 }
 
@@ -141,11 +153,7 @@ int main(int argc, char *argv[]){
   cout << "Zeros(Errors before charge: " << zeros << endl;
 
   cudaFree(d_cells);
-  cudaFree(dev_out);
-  cudaFree(dev_out2);
-  cudaFree(dev_out3);
   free(cells);
-  free(out);
   free(x_part);
   free(y_part);
 }
