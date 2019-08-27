@@ -7,9 +7,9 @@
 #define WIDTH 8192
 #define LENGHT 8192
 #define RADIO 100
-#define SUBGRID 40410
+#define SUBGRID 40401
 #define PARTICLES_PER_THREAD 100
-#define N_NEW 20205000
+#define N_NEW 20200500
 #define N_PARTICLES 5000
 
 __constant__ float x_part_dev[N_PARTICLES];
@@ -44,20 +44,24 @@ __global__ void charge(cell *map)
 {
   int x_cen,y_cen,subgrid_x,subgrid_y, index;
   int idx = blockIdx.x*blockDim.x + threadIdx.x;
-  int id_particle_piv = idx/40401;
+  //int id_particle_piv = idx/SUBGRID;
+  int id_particle = idx/SUBGRID;
   float d;
 
-  for (size_t i = id_particle_piv*PARTICLES_PER_THREAD;
-      i < id_particle_piv*PARTICLES_PER_THREAD + PARTICLES_PER_THREAD; i++)
-  {
-    x_cen = x_part_dev[i];
-    y_cen = y_part_dev[i];
-    subgrid_x = i%SUBGRID;
-    subgrid_y = i/SUBGRID;
-    d = dist(x_cen,y_cen,subgrid_x,subgrid_y);
-    index = ((y_cen-RADIO)+subgrid_y)*WIDTH+((x_cen-RADIO)+subgrid_x);
-    atomicAdd(&map[index].charge, d);
-  }
+  //if(id_particle_piv*PARTICLES_PER_THREAD < N_PARTICLES) 
+  //{
+    //for (size_t i = id_particle_piv*PARTICLES_PER_THREAD;
+    //  i < id_particle_piv*PARTICLES_PER_THREAD + PARTICLES_PER_THREAD; i++)
+    //{
+  x_cen = x_part_dev[id_particle];
+  y_cen = y_part_dev[id_particle];
+  subgrid_x = (id_particle%SUBGRID)%201;
+  subgrid_y = (id_particle%SUBGRID)/201;
+  d = dist(x_cen,y_cen,subgrid_x,subgrid_y);
+  index = ((y_cen-RADIO)+subgrid_y)*WIDTH+((x_cen-RADIO)+subgrid_x);
+  if(0<=index && index<WIDTH*LENGHT) atomicAdd(&map[index].charge, d);
+    //}
+  //}
 }
 
 int main(int argc, char *argv[]){
@@ -104,7 +108,7 @@ int main(int argc, char *argv[]){
 
   // Define sizes of GPU
   int blockSize = 256; // # threads
-  int gridSize = (N_NEW/blockSize)+(N_NEW % blockSize != 0); // # blocks
+  int gridSize = (SUBGRID*N_PARTICLES/blockSize)+(SUBGRID*N_PARTICLES % blockSize != 0); // # blocks
 
   cout << "Gridsize: " << gridSize << endl;
 
